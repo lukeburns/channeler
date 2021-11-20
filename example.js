@@ -1,5 +1,6 @@
 const ChannelStore = require('.').Store
 const Hyperswarm = require('hyperswarm')
+const Hyperbee = require('hyperbee')
 const ram = require('random-access-memory')
 
 main()
@@ -25,17 +26,34 @@ async function main () {
 
   const mySwarm = new Hyperswarm()
   await mySwarm.listen()
-  mySwarm.on('connection', socket => myStore.replicate(socket))
+  mySwarm.on('connection', socket => {
+    console.log('connection!')
+    myStore.replicate(socket)
+  })
   mySwarm.join(Buffer.alloc(32).fill('hello world'))
 
   const peerSwarm = new Hyperswarm()
   await peerSwarm.listen()
-  peerSwarm.on('connection', socket => peerStore.replicate(socket))
+  peerSwarm.on('connection', socket => {
+    console.log('connection.')
+    peerStore.replicate(socket)
+  })
   peerSwarm.join(Buffer.alloc(32).fill('hello world'))
 
-  writableChannel.append('hello')
-  writablePrivateChannel.append('i <3 u')
+  const opts = {
+    keyEncoding: 'utf-8',
+    valueEncoding: 'utf-8'
+  }
+  const writableBee = new Hyperbee(writableChannel, opts)
+  const writablePrivateBee = new Hyperbee(writablePrivateChannel, opts)
+  const readableBee = new Hyperbee(readableChannel, opts)
+  const readablePrivateBee = new Hyperbee(readablePrivateChannel, opts)
 
-  console.log((await readableChannel.get(0)).toString())
-  console.log((await readablePrivateChannel.get(0)).toString())
+  writableBee.put('message', 'miss u')
+  writablePrivateBee.put('message', 'miss u too')
+
+  await mySwarm.flush()
+
+  console.log((await readableBee.get('message')))
+  console.log((await readablePrivateBee.get('message')))
 }
